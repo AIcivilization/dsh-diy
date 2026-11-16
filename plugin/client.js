@@ -81,6 +81,7 @@ window.__ModuleLoader__.load({
       const [backupBusy, setBackupBusy] = useState(false)
       const [error, setError] = useState('')
       const [message, setMessage] = useState('')
+      const [recoveryCommand, setRecoveryCommand] = useState('')
       const [aiMessage, setAiMessage] = useState('')
 
       useEffect(() => {
@@ -117,11 +118,12 @@ window.__ModuleLoader__.load({
       }
       const refreshBackups = async () => setBackups(await api('/backups'))
       const createBackup = async () => {
-        setBackupBusy(true); setError(''); setMessage('')
+        setBackupBusy(true); setError(''); setMessage(''); setRecoveryCommand('')
         try {
           const saved = await api('/backup', 'POST', {})
           await refreshBackups()
-          setMessage(`已创建恢复点：${new Date(saved.createdAt).toLocaleString()}（${saved.files.join('、')}）`)
+          setRecoveryCommand(saved.restoreCommand)
+          setMessage(`时间胶囊已创建：${new Date(saved.createdAt).toLocaleString()}（${saved.files.join('、')}）。恢复不依赖 dsh-diy 插件。`)
         } catch (reason) { setError(reason.message) }
         finally { setBackupBusy(false) }
       }
@@ -134,6 +136,15 @@ window.__ModuleLoader__.load({
           setMessage(`配置已恢复。请完全退出并重启 DSH，再运行：${result.command}`)
         } catch (reason) { setError(reason.message) }
         finally { setBackupBusy(false) }
+      }
+      const copyRecoveryCommand = async command => {
+        setRecoveryCommand(command)
+        try {
+          await navigator.clipboard.writeText(command)
+          setMessage('独立恢复命令已复制。请保存到安全位置；即使卸载 dsh-diy，仍可在终端运行。')
+        } catch {
+          setMessage('请复制下方命令并保存到安全位置；此命令不依赖 dsh-diy 插件。')
+        }
       }
       const applyPlan = async () => {
         if (!window.confirm('将先自动创建恢复点，再安装所选插件到当前 DSH profile。安装修改 profile，完成后需要重启 DSH。继续吗？')) return
@@ -176,13 +187,18 @@ window.__ModuleLoader__.load({
         h('div', {style: {fontSize: 18, fontWeight: 700}}, 'DSH DIY'),
         h('div', {style: {...small, marginTop: 3}}, meta ? `当前 profile：${meta.profile || '未知'} · ${meta.pluginCount} 个目录候选 · 数据截至 ${meta.catalogAsOf}` : '正在读取 DSH 状态…'),
         h(Card, null,
-          h('div', {style: {fontWeight: 650}}, '第 1 步 · 创建可恢复状态'),
-          h('div', {style: {...small, margin: '3px 0 9px'}}, '保存当前 profile 的插件清单、依赖锁文件和配置补丁。每次安装前系统也会自动再存一次；恢复后需要重启并运行冻结安装命令还原依赖。'),
-          h(Button, {primary: true, disabled: backupBusy || !meta?.profile, onClick: createBackup}, backupBusy ? '处理中…' : '现在创建恢复点'),
+          h('div', {style: {fontWeight: 650}}, '第 1 步 · 创建 DSH 时间胶囊'),
+          h('div', {style: {...small, margin: '3px 0 9px'}}, '保存当前 profile 文件，并生成一个独立 Node 恢复脚本。命令可复制到安全位置；即使之后卸载 dsh-diy，脚本仍可恢复配置并按锁文件重建插件依赖。'),
+          h(Button, {primary: true, disabled: backupBusy || !meta?.profile, onClick: createBackup}, backupBusy ? '处理中…' : '创建时间胶囊'),
           backups.length ? h('div', {style: {marginTop: 8}}, backups.map((item, index) => h('div', {key: item.id, style: {display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, borderTop: `1px solid ${C.border}`, paddingTop: 6, marginTop: 6}},
             h('span', {style: small}, `${index === 0 ? '最近 · ' : ''}${new Date(item.createdAt).toLocaleString()} · ${item.files.length} 项`),
-            h(Button, {disabled: backupBusy, onClick: () => restoreBackup(item.id)}, '恢复此状态'),
+            h('div', {style: {display: 'flex', gap: 5}}, h(Button, {disabled: backupBusy || !item.restoreCommand, onClick: () => copyRecoveryCommand(item.restoreCommand)}, item.restoreCommand ? '复制终端恢复命令' : '仅支持面板恢复'), h(Button, {disabled: backupBusy, onClick: () => restoreBackup(item.id)}, '面板恢复')),
           ))) : h('div', {style: {...small, marginTop: 7}}, '尚无恢复点。')),
+          recoveryCommand ? h('div', {style: {marginTop: 8}},
+            h('div', {style: {...small, marginBottom: 4}}, '独立恢复命令（保存后可在终端运行；运行前请完全退出 DSH）：'),
+            h('code', {style: {display: 'block', padding: 8, borderRadius: 6, background: C.surface, overflowWrap: 'anywhere', userSelect: 'all', fontSize: 11}}, recoveryCommand),
+            h('div', {style: {marginTop: 5}}, h(Button, {onClick: () => copyRecoveryCommand(recoveryCommand)}, '复制恢复命令')),
+          ) : null,
         h(Card, null,
           h('div', {style: {fontWeight: 650}}, '你想完成什么？'),
           h('div', {style: {...small, margin: '3px 0 9px'}}, '目录检索只负责找线索；“请 AI 帮我选”会把目标发给当前 DSH 对话中的助手，请它追问需求、比较插件并解释选择理由。'),

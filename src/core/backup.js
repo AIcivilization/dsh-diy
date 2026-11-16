@@ -8,6 +8,94 @@ const PROFILE_FILES = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 
 const BACKUP_ROOT_NAME = 'dsh-diy/backups'
 const BACKUP_ID = /^[A-Za-z0-9-]{20,80}$/
 
+function standaloneRestoreSource(profile, id) {
+  return `#!/usr/bin/env node
+import {createHash, randomUUID} from 'node:crypto'
+import {chmod, copyFile, lstat, mkdir, readFile, realpath, rename, rm, stat, writeFile} from 'node:fs/promises'
+import {dirname, isAbsolute, join, relative, resolve, sep} from 'node:path'
+import {fileURLToPath} from 'node:url'
+import {spawnSync} from 'node:child_process'
+
+const profile = ${JSON.stringify(profile)}
+const id = ${JSON.stringify(id)}
+const files = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'cordis.patch.yml']
+const capsuleDir = dirname(fileURLToPath(import.meta.url))
+const backupRoot = dirname(capsuleDir)
+const home = resolve(backupRoot, '../../..')
+const profileRoot = await realpath(join(home, 'profiles'))
+const profileDir = await realpath(join(profileRoot, profile))
+const inside = (parent, child) => { const r = relative(parent, child); return r === '' || (r !== '..' && !r.startsWith('..' + sep) && !isAbsolute(r)) }
+if (!inside(profileRoot, profileDir)) throw new Error('profile directory escapes DSH profiles')
+const manifestPath = join(capsuleDir, 'manifest.json')
+const manifestInfo = await lstat(manifestPath)
+if (!manifestInfo.isFile() || manifestInfo.isSymbolicLink()) throw new Error('capsule manifest is not a regular file')
+const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+if (manifest.format !== 1 || manifest.id !== id || manifest.profile !== profile) throw new Error('capsule does not match this restore command')
+for (const [name, info] of Object.entries(manifest.files || {})) {
+  if (!files.includes(name) || !info.present) continue
+  const source = join(capsuleDir, name)
+  const sourceInfo = await lstat(source)
+  if (!sourceInfo.isFile() || sourceInfo.isSymbolicLink()) throw new Error('capsule file is not regular: ' + name)
+  const hash = createHash('sha256').update(await readFile(source)).digest('hex')
+  if (hash !== info.sha256) throw new Error('capsule file hash mismatch: ' + name)
+}
+
+// Keep a self-contained capsule of the state being replaced, so this restore is reversible.
+const safetyId = 'pre-restore-' + new Date().toISOString().replace(/[^0-9TZ]/g, '-') + '-' + randomUUID()
+const safetyDir = join(backupRoot, safetyId)
+await mkdir(safetyDir, {recursive: false, mode: 0o700})
+const previousFiles = {}
+for (const name of files) {
+  try {
+    const source = join(profileDir, name)
+    const info = await lstat(source)
+    if (!info.isFile() || info.isSymbolicLink()) throw new Error('profile file is not regular: ' + name)
+    const content = await readFile(source)
+    await writeFile(join(safetyDir, name), content, {mode: 0o600, flag: 'wx'})
+    previousFiles[name] = {present: true, mode: info.mode & 0o777, sha256: createHash('sha256').update(content).digest('hex')}
+  } catch (error) {
+    if (error.code === 'ENOENT') previousFiles[name] = {present: false}
+    else throw error
+  }
+}
+await writeFile(join(safetyDir, 'manifest.json'), JSON.stringify({format: 1, id: safetyId, profile, createdAt: new Date().toISOString(), files: previousFiles}, null, 2), {mode: 0o600, flag: 'wx'})
+const ownScript = await readFile(fileURLToPath(import.meta.url), 'utf8')
+const safetyScript = ownScript.replace('const id = ' + JSON.stringify(id) + ';', 'const id = ' + JSON.stringify(safetyId) + ';')
+await writeFile(join(safetyDir, 'restore.mjs'), safetyScript, {mode: 0o700, flag: 'wx'})
+
+const staging = join(profileDir, '.dsh-diy-restore-' + randomUUID())
+await mkdir(staging, {mode: 0o700})
+try {
+  for (const name of files) if (manifest.files?.[name]?.present) await copyFile(join(capsuleDir, name), join(staging, name))
+  for (const name of files) {
+    const target = join(profileDir, name)
+    const info = manifest.files?.[name]
+    if (info?.present) {
+      const staged = join(staging, name)
+      await chmod(staged, info.mode || 0o600)
+      await rename(staged, target)
+    } else await rm(target, {force: true})
+  }
+} finally { await rm(staging, {recursive: true, force: true}) }
+console.log('恢复完成：profile 配置文件已还原。')
+const shellQuote = value => "'" + value.replaceAll("'", "'\\''") + "'"
+console.log('如需撤销这次恢复，可运行：node ' + shellQuote(join(safetyDir, 'restore.mjs')))
+console.log('正在按恢复点中的锁文件重建插件依赖……')
+const install = spawnSync('dsh', ['plugin', '--profile', profile, 'install', '--frozen-lockfile'], {stdio: 'inherit'})
+if (install.error || install.status !== 0) {
+  console.error('依赖重建未完成。请完全退出 DSH 后，在终端运行：dsh plugin --profile ' + profile + ' install --frozen-lockfile')
+  if (install.error) console.error(install.error.message)
+  process.exitCode = install.status || 1
+} else {
+  console.log('依赖已按恢复点重建。请完全退出并重新打开 DSH。')
+}
+`
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`
+}
+
 function resolveDshHome(env = process.env) {
   const configured = String(env.DSH_HOME || '').trim()
   const selected = configured || join(homedir(), '.dsh')
@@ -107,8 +195,10 @@ export async function createProfileBackup(profile, {env = process.env, now = () 
       state: manifestState(packageText),
     }
     await writeFile(join(staging, 'manifest.json'), JSON.stringify(manifest, null, 2), {mode: 0o600, flag: 'wx'})
+    await writeFile(join(staging, 'restore.mjs'), standaloneRestoreSource(profile, id), {mode: 0o700, flag: 'wx'})
     await rename(staging, destination)
-    return {id, profile, createdAt: manifest.createdAt, files: Object.keys(files).filter(name => files[name].present)}
+    const restoreScript = join(destination, 'restore.mjs')
+    return {id, profile, createdAt: manifest.createdAt, files: Object.keys(files).filter(name => files[name].present), capsulePath: destination, restoreCommand: `node ${shellQuote(restoreScript)}`}
   } catch (error) {
     await rm(staging, {recursive: true, force: true}).catch(() => {})
     throw error
@@ -125,9 +215,19 @@ export async function listProfileBackups(profile, {env = process.env} = {}) {
   for (const entry of names) {
     if (!entry.isDirectory() || !BACKUP_ID.test(entry.name)) continue
     try {
-      const manifest = JSON.parse(await readFile(join(backupRoot, entry.name, 'manifest.json'), 'utf8'))
+      const capsuleDir = join(backupRoot, entry.name)
+      const manifestPath = join(capsuleDir, 'manifest.json')
+      const manifestInfo = await lstat(manifestPath)
+      if (!manifestInfo.isFile() || manifestInfo.isSymbolicLink()) continue
+      const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
       if (manifest.format !== 1 || manifest.id !== entry.name || manifest.profile !== profile) continue
-      rows.push({id: manifest.id, profile, createdAt: manifest.createdAt, files: Object.keys(manifest.files || {}).filter(name => manifest.files[name]?.present)})
+      const restoreScript = join(capsuleDir, 'restore.mjs')
+      let restoreCommand = null
+      try {
+        const restoreInfo = await lstat(restoreScript)
+        if (restoreInfo.isFile() && !restoreInfo.isSymbolicLink()) restoreCommand = `node ${shellQuote(restoreScript)}`
+      } catch { /* Older capsules can still be restored from the DSH DIY panel. */ }
+      rows.push({id: manifest.id, profile, createdAt: manifest.createdAt, files: Object.keys(manifest.files || {}).filter(name => manifest.files[name]?.present), capsulePath: capsuleDir, restoreCommand})
     } catch { /* Incomplete or unreadable snapshots are not offered for restore. */ }
   }
   return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
