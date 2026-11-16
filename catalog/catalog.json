@@ -9,45 +9,114 @@
   "capabilities": [
     {
       "id": "media.video.project",
-      "name": {"zh": "视频项目工作台", "en": "Video project workspace"},
+      "name": {
+        "zh": "视频项目工作台",
+        "en": "Video project workspace"
+      },
       "description": "Create, organize, preview, and render a video project.",
-      "aliases": ["视频工作台", "视频工程", "视频项目", "视频制作", "video project"]
+      "aliases": [
+        "视频工作台",
+        "视频工程",
+        "视频项目",
+        "视频制作",
+        "video project"
+      ]
     },
     {
       "id": "media.video.render",
-      "name": {"zh": "视频预览与导出", "en": "Video preview and export"},
+      "name": {
+        "zh": "视频预览与导出",
+        "en": "Video preview and export"
+      },
       "description": "Preview or render a video project to a deliverable video file.",
-      "aliases": ["视频渲染", "渲染视频", "视频预览", "导出视频", "MP4导出", "render video"]
+      "aliases": [
+        "视频渲染",
+        "渲染视频",
+        "视频预览",
+        "导出视频",
+        "MP4导出",
+        "render video"
+      ]
     },
     {
       "id": "media.video.edit",
-      "name": {"zh": "视频处理与剪辑", "en": "Video processing and editing"},
+      "name": {
+        "zh": "视频处理与剪辑",
+        "en": "Video processing and editing"
+      },
       "description": "Process video media such as trimming, transcoding, or extracting frames.",
-      "aliases": ["视频剪辑", "编辑视频", "裁切视频", "转码视频", "视频处理", "video editing"]
+      "aliases": [
+        "视频剪辑",
+        "编辑视频",
+        "裁切视频",
+        "转码视频",
+        "视频处理",
+        "video editing"
+      ]
     },
     {
       "id": "media.video.subtitle.process",
-      "name": {"zh": "字幕与音轨处理", "en": "Subtitle and audio track processing"},
+      "name": {
+        "zh": "字幕与音轨处理",
+        "en": "Subtitle and audio track processing"
+      },
       "description": "Process subtitle files and audio tracks in video media.",
-      "aliases": ["字幕", "加字幕", "字幕处理", "字幕合成", "音轨", "视频字幕", "subtitles"]
+      "aliases": [
+        "字幕",
+        "加字幕",
+        "字幕处理",
+        "字幕合成",
+        "音轨",
+        "视频字幕",
+        "subtitles"
+      ]
     },
     {
       "id": "media.video.storyboard.extract",
-      "name": {"zh": "从视频提取分镜", "en": "Extract a storyboard from video"},
+      "name": {
+        "zh": "从视频提取分镜",
+        "en": "Extract a storyboard from video"
+      },
       "description": "Analyze a video and extract representative frames grouped by shot.",
-      "aliases": ["分镜", "故事板", "镜头切分", "视频分镜", "storyboard"]
+      "aliases": [
+        "分镜",
+        "故事板",
+        "镜头切分",
+        "视频分镜",
+        "storyboard"
+      ]
     },
     {
       "id": "media.video.generate",
-      "name": {"zh": "生成视频素材", "en": "Generate video assets"},
+      "name": {
+        "zh": "生成视频素材",
+        "en": "Generate video assets"
+      },
       "description": "Generate video from text, images, or reference frames.",
-      "aliases": ["视频生成", "生成视频", "文生视频", "图生视频", "AI视频", "text to video"]
+      "aliases": [
+        "视频生成",
+        "生成视频",
+        "文生视频",
+        "图生视频",
+        "AI视频",
+        "text to video"
+      ]
     },
     {
       "id": "media.image.generate",
-      "name": {"zh": "生成图像素材", "en": "Generate image assets"},
+      "name": {
+        "zh": "生成图像素材",
+        "en": "Generate image assets"
+      },
       "description": "Generate or edit images for a creative project.",
-      "aliases": ["生图", "生成图片", "图像生成", "人物图", "角色图", "image generation"]
+      "aliases": [
+        "生图",
+        "生成图片",
+        "图像生成",
+        "人物图",
+        "角色图",
+        "image generation"
+      ]
     }
   ],
   "plugins": [
@@ -55,51 +124,179 @@
       "id": "dsh-remotion",
       "package": "dsh-remotion",
       "versionObserved": "0.10.6",
-      "summary": {"zh": "基于 Remotion 的 DSH 视频工作台，提供工程检索、模板、素材排序、Studio 预览与 MP4 导出。", "en": "A Remotion-based DSH video workspace with project search, templates, asset ordering, Studio preview, and MP4 export."},
-      "capabilities": ["media.video.project", "media.video.render"],
-      "dsh": {"bundle": true, "engines": ">=0.2.1-rc.3", "clientPlatform": "web"},
-      "evidence": {"level": "catalog-claim", "source": "dsh-pick", "observedAt": "2026-11-15", "workflowVerified": false},
-      "links": {"repository": "https://github.com/STARDUSTLC666/dsh-remotion", "npm": "https://www.npmjs.com/package/dsh-remotion"}
+      "summary": {
+        "zh": "基于 Remotion 的 DSH 视频工作台，提供工程检索、模板、素材排序、Studio 预览与 MP4 导出。",
+        "en": "A Remotion-based DSH video workspace with project search, templates, asset ordering, Studio preview, and MP4 export."
+      },
+      "capabilities": [
+        "media.video.project",
+        "media.video.render"
+      ],
+      "dsh": {
+        "bundle": true,
+        "engines": ">=0.2.1-rc.3",
+        "clientPlatform": "web"
+      },
+      "evidence": {
+        "level": "catalog-claim",
+        "source": "dsh-pick",
+        "observedAt": "2026-11-15",
+        "workflowVerified": false
+      },
+      "links": {
+        "repository": "https://github.com/STARDUSTLC666/dsh-remotion",
+        "npm": "https://www.npmjs.com/package/dsh-remotion"
+      },
+      "displayName": "Remotion 视频项目工作台",
+      "whatItDoes": {
+        "zh": "用 React/Remotion 模板组织视频素材、预览项目并导出 MP4。",
+        "en": "A Remotion-based DSH video workspace with project search, templates, asset ordering, Studio preview, and MP4 export."
+      },
+      "bestFor": "适合希望用组件和模板制作结构化、可复用视频项目的人。",
+      "tradeoffs": "基于 Remotion，项目工作流与其他插件是否自动衔接尚未验证；运行环境和渲染依赖需要按插件说明配置。",
+      "recommendation": "在本原型中作为“项目搭建与渲染”候选；相较 HyperFrames，更适合 Remotion 项目方式。"
     },
     {
       "id": "dsh-hyperframes",
       "package": "dsh-hyperframes",
       "versionObserved": "0.11.6",
-      "summary": {"zh": "基于 HyperFrames 的 DSH HTML 视频工作台，提供工程检索、模板、素材排序、预览与本地 MP4 导出。", "en": "An HTML video workspace for DSH with project search, templates, asset ordering, preview, and local MP4 export."},
-      "capabilities": ["media.video.project", "media.video.render"],
-      "dsh": {"bundle": true, "engines": ">=0.2.1-rc.3", "clientPlatform": "web"},
-      "evidence": {"level": "catalog-claim", "source": "dsh-pick", "observedAt": "2026-11-15", "workflowVerified": false},
-      "links": {"repository": "https://github.com/STARDUSTLC666/dsh-hyperframes", "npm": "https://www.npmjs.com/package/dsh-hyperframes"}
+      "summary": {
+        "zh": "基于 HyperFrames 的 DSH HTML 视频工作台，提供工程检索、模板、素材排序、预览与本地 MP4 导出。",
+        "en": "An HTML video workspace for DSH with project search, templates, asset ordering, preview, and local MP4 export."
+      },
+      "capabilities": [
+        "media.video.project",
+        "media.video.render"
+      ],
+      "dsh": {
+        "bundle": true,
+        "engines": ">=0.2.1-rc.3",
+        "clientPlatform": "web"
+      },
+      "evidence": {
+        "level": "catalog-claim",
+        "source": "dsh-pick",
+        "observedAt": "2026-11-15",
+        "workflowVerified": false
+      },
+      "links": {
+        "repository": "https://github.com/STARDUSTLC666/dsh-hyperframes",
+        "npm": "https://www.npmjs.com/package/dsh-hyperframes"
+      },
+      "displayName": "HyperFrames 视频项目工作台",
+      "whatItDoes": {
+        "zh": "用 HTML 视频项目组织素材、预览并导出本地 MP4。",
+        "en": "An HTML video workspace for DSH with project search, templates, asset ordering, preview, and local MP4 export."
+      },
+      "bestFor": "适合偏好 HTML/CSS 时间线和网页技术栈的视频创作者。",
+      "tradeoffs": "基于 HyperFrames；与 Remotion 的项目格式和工作方式不同，二者择一即可；完整衔接尚未验证。",
+      "recommendation": "在本原型中作为“项目搭建与渲染”候选；相较 Remotion，更偏 HTML 项目方式。"
     },
     {
       "id": "dsh-ffmpeg",
       "package": "dsh-ffmpeg",
       "versionObserved": "0.7.8",
-      "summary": {"zh": "本机 FFmpeg 音视频处理，包括裁切、转码、字幕、音轨、GIF、抽帧和视频总览图。", "en": "Local FFmpeg media processing for trimming, transcoding, subtitles, audio tracks, GIFs, frame extraction, and contact sheets."},
-      "capabilities": ["media.video.edit", "media.video.subtitle.process"],
-      "dsh": {"bundle": true, "engines": ">=0.2.1-rc.3", "clientPlatform": "web"},
-      "evidence": {"level": "catalog-claim", "source": "dsh-pick", "observedAt": "2026-11-15", "workflowVerified": false},
-      "links": {"repository": "https://github.com/STARDUSTLC666/dsh-ffmpeg", "npm": "https://www.npmjs.com/package/dsh-ffmpeg"}
+      "summary": {
+        "zh": "本机 FFmpeg 音视频处理，包括裁切、转码、字幕、音轨、GIF、抽帧和视频总览图。",
+        "en": "Local FFmpeg media processing for trimming, transcoding, subtitles, audio tracks, GIFs, frame extraction, and contact sheets."
+      },
+      "capabilities": [
+        "media.video.edit",
+        "media.video.subtitle.process"
+      ],
+      "dsh": {
+        "bundle": true,
+        "engines": ">=0.2.1-rc.3",
+        "clientPlatform": "web"
+      },
+      "evidence": {
+        "level": "catalog-claim",
+        "source": "dsh-pick",
+        "observedAt": "2026-11-15",
+        "workflowVerified": false
+      },
+      "links": {
+        "repository": "https://github.com/STARDUSTLC666/dsh-ffmpeg",
+        "npm": "https://www.npmjs.com/package/dsh-ffmpeg"
+      },
+      "displayName": "FFmpeg 音视频处理",
+      "whatItDoes": {
+        "zh": "对本地视频做裁切、转码、抽帧，并处理字幕文件和音轨。",
+        "en": "Local FFmpeg media processing for trimming, transcoding, subtitles, audio tracks, GIFs, frame extraction, and contact sheets."
+      },
+      "bestFor": "适合已有视频素材的技术处理、格式转换、字幕/音轨合成。",
+      "tradeoffs": "它是媒体处理工具，不负责创意、剧本或自动生成字幕文本；需要本机 FFmpeg 环境。",
+      "recommendation": "剪辑处理和字幕音轨在目录中映射到同一插件，适合作为这些步骤的候选。"
     },
     {
       "id": "dsh-video-storyboard",
       "package": "dsh-video-storyboard",
       "versionObserved": "0.7.5",
-      "summary": {"zh": "分析视频并按镜头切分，生成可引用的分镜图。", "en": "Analyze a video and create citeable storyboard images grouped by shot."},
-      "capabilities": ["media.video.storyboard.extract"],
-      "dsh": {"bundle": true, "engines": ">=0.1.0-rc.7", "clientPlatform": "web"},
-      "evidence": {"level": "catalog-claim", "source": "dsh-pick", "observedAt": "2026-11-15", "workflowVerified": false},
-      "links": {"repository": "https://github.com/SAOS-3624/dsh-video-storyboard", "npm": "https://www.npmjs.com/package/dsh-video-storyboard"}
+      "summary": {
+        "zh": "分析视频并按镜头切分，生成可引用的分镜图。",
+        "en": "Analyze a video and create citeable storyboard images grouped by shot."
+      },
+      "capabilities": [
+        "media.video.storyboard.extract"
+      ],
+      "dsh": {
+        "bundle": true,
+        "engines": ">=0.1.0-rc.7",
+        "clientPlatform": "web"
+      },
+      "evidence": {
+        "level": "catalog-claim",
+        "source": "dsh-pick",
+        "observedAt": "2026-11-15",
+        "workflowVerified": false
+      },
+      "links": {
+        "repository": "https://github.com/SAOS-3624/dsh-video-storyboard",
+        "npm": "https://www.npmjs.com/package/dsh-video-storyboard"
+      },
+      "displayName": "视频分镜提取",
+      "whatItDoes": {
+        "zh": "分析已有视频，按镜头切分并生成代表性分镜图。",
+        "en": "Analyze a video and create citeable storyboard images grouped by shot."
+      },
+      "bestFor": "适合从参考视频整理镜头结构、做素材分析。",
+      "tradeoffs": "从视频提取分镜不等同于根据剧本自动创作分镜；完整流程和平台兼容性未验证。",
+      "recommendation": "补足原型里的“参考视频分析”步骤，不覆盖剧本到分镜创作。"
     },
     {
       "id": "@q253595422/dsh-imagegen-video",
       "package": "@q253595422/dsh-imagegen-video",
       "versionObserved": "1.22.2",
-      "summary": {"zh": "面向 DSH Web 的图像和视频生成插件，提供文本/图像生成入口及视频创作流程。", "en": "Image and video generation for the DSH Web interface, including text/image generation and a video creation flow."},
-      "capabilities": ["media.image.generate", "media.video.generate"],
-      "dsh": {"bundle": true, "clientPlatform": "web"},
-      "evidence": {"level": "catalog-claim", "source": "dsh-pick", "observedAt": "2026-11-15", "workflowVerified": false},
-      "links": {"repository": "https://github.com/q253595422/dsh-imagegen-video", "npm": "https://www.npmjs.com/package/@q253595422/dsh-imagegen-video"}
+      "summary": {
+        "zh": "面向 DSH Web 的图像和视频生成插件，提供文本/图像生成入口及视频创作流程。",
+        "en": "Image and video generation for the DSH Web interface, including text/image generation and a video creation flow."
+      },
+      "capabilities": [
+        "media.image.generate",
+        "media.video.generate"
+      ],
+      "dsh": {
+        "bundle": true,
+        "clientPlatform": "web"
+      },
+      "evidence": {
+        "level": "catalog-claim",
+        "source": "dsh-pick",
+        "observedAt": "2026-11-15",
+        "workflowVerified": false
+      },
+      "links": {
+        "repository": "https://github.com/q253595422/dsh-imagegen-video",
+        "npm": "https://www.npmjs.com/package/@q253595422/dsh-imagegen-video"
+      },
+      "displayName": "图像与视频生成",
+      "whatItDoes": {
+        "zh": "提供文本/图像生成入口及视频创作流程。",
+        "en": "Image and video generation for the DSH Web interface, including text/image generation and a video creation flow."
+      },
+      "bestFor": "适合需要生成角色、插图或视频素材的创意项目。",
+      "tradeoffs": "服务、模型、额度和密钥要求以插件自身说明为准；DIY 未验证其生成质量或端到端衔接。",
+      "recommendation": "可作为生成图像/视频素材的候选；功能覆盖较宽，但当前能力边界需以插件页面核实。"
     }
   ]
 }

@@ -2,15 +2,79 @@
   "schemaVersion": 1,
   "id": "video-creator",
   "version": 1,
-  "name": {"zh": "视频创作工作台（原型）", "en": "Video creation workspace (prototype)"},
-  "description": {"zh": "组合视频项目、素材处理、分镜和生成素材候选。当前插件信息来自目录声明，步骤之间尚未验证为自动衔接。", "en": "A prototype combining candidates for project authoring, media processing, storyboards, and generated assets. Automatic handoffs are not verified."},
-  "extends": ["general"],
+  "name": {
+    "zh": "视频创作工作台（原型）",
+    "en": "Video creation workspace (prototype)"
+  },
+  "description": {
+    "zh": "组合视频项目、素材处理、分镜和生成素材候选。当前插件信息来自目录声明，步骤之间尚未验证为自动衔接。",
+    "en": "A prototype combining candidates for project authoring, media processing, storyboards, and generated assets. Automatic handoffs are not verified."
+  },
+  "extends": [
+    "general"
+  ],
   "steps": [
-    {"id": "video-project", "capability": "media.video.project", "optional": false, "pluginChoices": ["dsh-remotion", "dsh-hyperframes"], "selection": "choose-one"},
-    {"id": "media-edit", "capability": "media.video.edit", "optional": true, "pluginChoices": ["dsh-ffmpeg"], "selection": "choose-one"},
-    {"id": "subtitle-audio", "capability": "media.video.subtitle.process", "optional": true, "pluginChoices": ["dsh-ffmpeg"], "selection": "choose-one"},
-    {"id": "storyboard", "capability": "media.video.storyboard.extract", "optional": true, "pluginChoices": ["dsh-video-storyboard"], "selection": "choose-one"},
-    {"id": "generate-assets", "capability": "media.video.generate", "optional": true, "pluginChoices": ["@q253595422/dsh-imagegen-video"], "selection": "choose-one"}
+    {
+      "id": "video-project",
+      "capability": "media.video.project",
+      "optional": false,
+      "pluginChoices": [
+        "dsh-remotion",
+        "dsh-hyperframes"
+      ],
+      "selection": "choose-one",
+      "name": "项目搭建与预览",
+      "description": "建立视频工程、整理素材、预览并导出成片。",
+      "why": "二选一：Remotion 偏 React 组件/模板；HyperFrames 偏 HTML 项目。"
+    },
+    {
+      "id": "media-edit",
+      "capability": "media.video.edit",
+      "optional": true,
+      "pluginChoices": [
+        "dsh-ffmpeg"
+      ],
+      "selection": "choose-one",
+      "name": "视频剪辑与格式处理",
+      "description": "裁切、转码、抽帧等已有视频处理。",
+      "why": "FFmpeg 面向媒体处理；不负责创意写作或自动生成字幕文本。"
+    },
+    {
+      "id": "subtitle-audio",
+      "capability": "media.video.subtitle.process",
+      "optional": true,
+      "pluginChoices": [
+        "dsh-ffmpeg"
+      ],
+      "selection": "choose-one",
+      "name": "字幕文件与音轨",
+      "description": "处理字幕文件、合成字幕或调整音轨。",
+      "why": "当前目录对应 FFmpeg；字幕生成/语音识别能力需要另行确认。"
+    },
+    {
+      "id": "storyboard",
+      "capability": "media.video.storyboard.extract",
+      "optional": true,
+      "pluginChoices": [
+        "dsh-video-storyboard"
+      ],
+      "selection": "choose-one",
+      "name": "参考视频分镜分析",
+      "description": "从现有视频中按镜头提取代表画面。",
+      "why": "用于分析参考视频，不等于从剧本自动生成分镜。"
+    },
+    {
+      "id": "generate-assets",
+      "capability": "media.video.generate",
+      "optional": true,
+      "pluginChoices": [
+        "@q253595422/dsh-imagegen-video"
+      ],
+      "selection": "choose-one",
+      "name": "生成图像/视频素材",
+      "description": "为项目生成角色图、插图或视频片段。",
+      "why": "插件具体模型、服务密钥和额度在其自身设置里确认。"
+    }
   ],
   "defaultPlugins": []
 }
