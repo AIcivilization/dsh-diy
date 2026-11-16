@@ -40,6 +40,29 @@ export function searchCapabilities(catalog, query, {limit = 8} = {}) {
     .map(row => ({...row, capability: capById.get(row.capability.id)}))
 }
 
+/** Search the broader ecosystem registry. Registry metadata is discovery evidence, not a verified capability claim. */
+export function searchPluginDirectory(catalog, query, {limit = 8} = {}) {
+  const text = String(query ?? '').trim()
+  if (!text) return []
+  const queryTerms = terms(text)
+  const rows = catalog.pluginDirectory?.plugins ?? []
+  return rows.map(plugin => {
+    const haystack = [plugin.package, plugin.description, plugin.category, ...plugin.keywords].join(' ')
+    const normalizedPackage = normalize(plugin.package)
+    const normalizedQuery = normalize(text)
+    const exact = normalizedPackage === normalizedQuery ? 1 : (normalizedPackage.includes(normalizedQuery) && normalizedQuery.length > 2 ? 0.95 : 0)
+    const pluginTerms = terms(haystack)
+    let overlap = 0
+    for (const term of queryTerms) if (pluginTerms.has(term)) overlap++
+    const score = Math.max(exact, queryTerms.size ? (overlap / queryTerms.size) * 0.82 : 0)
+    return {plugin, score}
+  }).filter(row => row.score > 0).sort((a, b) => b.score - a.score
+    || (b.plugin.popularity?.weeklyDownloads ?? 0) - (a.plugin.popularity?.weeklyDownloads ?? 0)
+    || a.plugin.package.localeCompare(b.plugin.package))
+    .slice(0, Math.max(1, Math.min(30, Number(limit) || 8)))
+    .map(({plugin, score}) => ({...plugin, score}))
+}
+
 function compatibility(plugin, environment) {
   const reasons = []
   let state = 'unknown'
@@ -72,8 +95,9 @@ function compatibility(plugin, environment) {
 
 export function recommendPlugins(catalog, query, {environment = {}, limit = 8} = {}) {
   const matches = searchCapabilities(catalog, query, {limit: 20})
+  const directoryCandidates = searchPluginDirectory(catalog, query, {limit})
   const matchedIds = new Set(matches.map(match => match.capability.id))
-  if (!matchedIds.size) return {query, capabilities: [], candidates: [], missingCapabilities: [], catalogAsOf: catalog.metadata.asOf}
+  if (!matchedIds.size) return {query, capabilities: [], candidates: [], directoryCandidates, missingCapabilities: [], catalogAsOf: catalog.metadata.asOf}
 
   const candidates = catalog.plugins.map(plugin => {
     const covered = plugin.capabilities.filter(id => matchedIds.has(id))
@@ -112,6 +136,7 @@ export function recommendPlugins(catalog, query, {environment = {}, limit = 8} =
     query,
     capabilities: matches.map(({capability, score}) => ({id: capability.id, name: capability.name, score})),
     candidates,
+    directoryCandidates,
     missingCapabilities,
     catalogAsOf: catalog.metadata.asOf,
   }

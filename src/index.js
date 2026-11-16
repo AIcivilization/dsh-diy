@@ -1,5 +1,5 @@
 export {loadCatalog, loadWorkspace, listWorkspaces} from './core/catalog.js'
-export {searchCapabilities, recommendPlugins} from './core/search.js'
+export {searchCapabilities, searchPluginDirectory, recommendPlugins} from './core/search.js'
 export {resolveWorkspace, diffWorkspace} from './core/recipe.js'
 export {buildApplyPlan} from './core/plan.js'
 export {createProfileBackup, listProfileBackups, readProfileBackup, restoreProfileFiles} from './core/backup.js'

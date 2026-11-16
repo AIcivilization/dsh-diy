@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import {buildApplyPlan, listWorkspaces, loadCatalog, loadWorkspace, recommendPlugins, resolveWorkspace} from '../src/index.js'
+import {buildApplyPlan, listWorkspaces, loadCatalog, loadWorkspace, recommendPlugins, resolveWorkspace, searchPluginDirectory} from '../src/index.js'
 
 const [command = 'help', ...args] = process.argv.slice(2)
 
@@ -44,6 +44,7 @@ function help() {
 
 Commands:
   recommend <goal>                         Find plugin candidates for a goal
+  search <query>                           Search the full DSH plugin discovery index
   workspaces                               List bundled workspace recipes
   workspace <id>                           Show a workspace recipe
   plan --workspace <id> --profile <name>   Print an install plan; does not install
@@ -51,8 +52,10 @@ Commands:
 
 Examples:
   dsh-diy recommend "视频剪辑和字幕"
+  dsh-diy search "视频字幕"
   dsh-diy plan --workspace video-creator --profile video-studio \\
     --select video-project=dsh-remotion --select media-edit=dsh-ffmpeg
+  plan also accepts --additional-steps '<JSON array>'; each package must be in the local discovery index.
 `)
 }
 
@@ -85,6 +88,26 @@ async function main() {
     return
   }
 
+  if (command === 'search') {
+    const query = positionals().join(' ').trim()
+    if (!query) throw new Error('provide a search query, for example: dsh-diy search "视频字幕"')
+    const results = searchPluginDirectory(catalog, query)
+    console.log(`查询：${query}`)
+    console.log(`发现目录：${catalog.pluginDirectory.metadata.count} 个条目 · 来源快照 ${catalog.pluginDirectory.metadata.sourceAsOf}`)
+    if (!results.length) {
+      console.log('没有找到匹配条目。')
+      return
+    }
+    for (const plugin of results) {
+      console.log(`\n${plugin.package}${plugin.versionObserved ? `@${plugin.versionObserved}` : ''} · ${plugin.category}`)
+      console.log(`  ${plugin.description}`)
+      if (plugin.popularity?.weeklyDownloads !== undefined) console.log(`  上游周下载量：${plugin.popularity.weeklyDownloads}`)
+      if (plugin.links?.npm) console.log(`  npm：${plugin.links.npm}`)
+    }
+    console.log('\n以上是生态发现索引结果，不代表能力、兼容性或工作流已验证。')
+    return
+  }
+
   if (command === 'workspaces') {
     for (const workspace of await listWorkspaces()) {
       console.log(`${workspace.id}\t${workspace.name.zh || workspace.name.en}\t${workspace.description.zh || workspace.description.en}`)
@@ -104,7 +127,13 @@ async function main() {
     const profile = optionValue('--profile')
     if (!workspaceId || !profile) throw new Error('plan needs --workspace <id> and --profile <name>')
     const recipe = await loadWorkspace(workspaceId, catalog)
-    const resolved = await resolveWorkspace(catalog, workspaceId, {selections: parseSelections(optionValues('--select'))})
+    let additionalSteps = []
+    if (optionValue('--additional-steps')) {
+      try { additionalSteps = JSON.parse(optionValue('--additional-steps')) }
+      catch { throw new Error('--additional-steps must be valid JSON') }
+      if (!Array.isArray(additionalSteps)) throw new Error('--additional-steps must be a JSON array')
+    }
+    const resolved = await resolveWorkspace(catalog, workspaceId, {selections: parseSelections(optionValues('--select')), additionalSteps})
     const plan = buildApplyPlan(catalog, resolved, {profile})
     console.log(JSON.stringify({catalogAsOf: catalog.metadata.asOf, recipe, resolved, plan}, null, 2))
     return

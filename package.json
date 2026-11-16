@@ -1,11 +1,11 @@
 {
   "name": "dsh-diy",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "AI-guided DSH workspace builder: discover plugins and compose scenario workspaces.",
   "license": "MIT",
   "type": "module",
   "main": "./plugin/index.js",
-  "files": ["README.md", "LICENSE", "NOTICE.md", "bin", "catalog", "docs", "plugin", "src"],
+  "files": ["README.md", "LICENSE", "NOTICE.md", "bin", "catalog", "docs", "plugin", "scripts", "src"],
   "exports": {
     ".": "./plugin/index.js",
     "./client": "./plugin/client.js",
@@ -15,7 +15,8 @@
     "dsh-diy": "./bin/dsh-diy.js"
   },
   "scripts": {
-    "dsh-diy": "node ./bin/dsh-diy.js"
+    "dsh-diy": "node ./bin/dsh-diy.js",
+    "catalog:build": "node ./scripts/build-plugin-directory.mjs"
   },
   "repository": {"type": "git", "url": "https://github.com/AIcivilization/dsh-diy.git"},
   "homepage": "https://github.com/AIcivilization/dsh-diy#readme",

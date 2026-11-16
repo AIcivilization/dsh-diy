@@ -38,6 +38,30 @@ export function validateCatalog(catalog) {
   if (!Array.isArray(catalog.capabilities) || !Array.isArray(catalog.plugins)) {
     throw new Error('catalog.capabilities and catalog.plugins must be arrays')
   }
+  if (catalog.pluginDirectory !== undefined) {
+    object(catalog.pluginDirectory, 'catalog.pluginDirectory')
+    object(catalog.pluginDirectory.metadata, 'catalog.pluginDirectory.metadata')
+    if (!Array.isArray(catalog.pluginDirectory.plugins)) throw new Error('catalog.pluginDirectory.plugins must be an array')
+    const directoryIds = new Set()
+    for (const [index, plugin] of catalog.pluginDirectory.plugins.entries()) {
+      const path = `catalog.pluginDirectory.plugins[${index}]`
+      object(plugin, path)
+      string(plugin.package, `${path}.package`)
+      if (!PACKAGE_NAME.test(plugin.package)) throw new Error(`${path}.package is invalid`)
+      if (directoryIds.has(plugin.package)) throw new Error(`duplicate plugin directory package: ${plugin.package}`)
+      directoryIds.add(plugin.package)
+      string(plugin.description, `${path}.description`)
+      string(plugin.category, `${path}.category`)
+      stringArray(plugin.keywords, `${path}.keywords`)
+      object(plugin.install, `${path}.install`)
+      if (typeof plugin.install.bundle !== 'boolean') throw new Error(`${path}.install.bundle must be boolean`)
+      object(plugin.evidence, `${path}.evidence`)
+      string(plugin.evidence.source, `${path}.evidence.source`)
+    }
+    if (catalog.pluginDirectory.metadata.count !== catalog.pluginDirectory.plugins.length) {
+      throw new Error('pluginDirectory.metadata.count does not match plugin count')
+    }
+  }
 
   const capabilityIds = new Set()
   for (const [index, capability] of catalog.capabilities.entries()) {

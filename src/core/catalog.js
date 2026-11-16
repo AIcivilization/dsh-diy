@@ -2,10 +2,17 @@ import {readFile} from 'node:fs/promises'
 import {validateCatalog, validateWorkspace} from './schema.js'
 
 const bundledCatalog = new URL('../../catalog/catalog.json', import.meta.url)
+const bundledDirectory = new URL('../../catalog/plugin-directory.json', import.meta.url)
 const bundledWorkspaces = new URL('../../catalog/workspaces/', import.meta.url)
 
-export async function loadCatalog({catalogUrl = bundledCatalog} = {}) {
+export async function loadCatalog({catalogUrl = bundledCatalog, directoryUrl = bundledDirectory} = {}) {
   const raw = JSON.parse(await readFile(catalogUrl, 'utf8'))
+  try {
+    raw.pluginDirectory = JSON.parse(await readFile(directoryUrl, 'utf8'))
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+    raw.pluginDirectory = {metadata: {count: 0, source: 'unavailable'}, plugins: []}
+  }
   return validateCatalog(raw)
 }
 
