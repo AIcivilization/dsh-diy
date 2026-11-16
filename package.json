@@ -1,0 +1,43 @@
+{
+  "name": "dsh-diy",
+  "version": "0.0.1",
+  "description": "AI-guided DSH workspace builder: discover plugins and compose scenario workspaces.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./plugin/index.js",
+  "files": ["README.md", "LICENSE", "NOTICE.md", "bin", "catalog", "docs", "plugin", "src"],
+  "exports": {
+    ".": "./plugin/index.js",
+    "./client": "./plugin/client.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "dsh-diy": "./bin/dsh-diy.js"
+  },
+  "scripts": {
+    "dsh-diy": "node ./bin/dsh-diy.js"
+  },
+  "repository": {"type": "git", "url": "https://github.com/AIcivilization/dsh-diy.git"},
+  "homepage": "https://github.com/AIcivilization/dsh-diy#readme",
+  "bugs": {"url": "https://github.com/AIcivilization/dsh-diy/issues"},
+  "keywords": ["deepseek-harness", "dsh", "workspace", "plugins", "workflow"],
+  "engines": {
+    "node": ">=22",
+    "dsh": ">=0.2.0-0 <0.3.0-0"
+  },
+  "dependencies": {
+    "semver": "^7.7.3"
+  },
+  "dsh": {
+    "bundle": {"patch": "./plugin/cordis.patch.yml"},
+    "client": {"platform": "web"},
+    "catalog": {
+      "category": "tool",
+      "summary": {
+        "zh": "AI 引导用户发现 DSH 插件，组合通用与场景工作台，并预览安装方案。",
+        "en": "An AI-guided workspace builder for discovering DSH plugins and previewing scenario workspace plans."
+      },
+      "capabilities": ["webServer", "tools", "sidebarRight", "pluginManager"]
+    }
+  }
+}

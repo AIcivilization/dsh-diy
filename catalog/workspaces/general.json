@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "general",
+  "version": 1,
+  "name": {"zh": "通用工作台", "en": "General workspace"},
+  "description": {"zh": "DSH 的轻量起点。场景插件按需添加，不预装不必要的能力。", "en": "A minimal starting point for DSH. Add scenario plugins when needed."},
+  "extends": [],
+  "steps": [],
+  "defaultPlugins": []
+}

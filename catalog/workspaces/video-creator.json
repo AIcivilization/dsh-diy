@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "video-creator",
+  "version": 1,
+  "name": {"zh": "视频创作工作台（原型）", "en": "Video creation workspace (prototype)"},
+  "description": {"zh": "组合视频项目、素材处理、分镜和生成素材候选。当前插件信息来自目录声明，步骤之间尚未验证为自动衔接。", "en": "A prototype combining candidates for project authoring, media processing, storyboards, and generated assets. Automatic handoffs are not verified."},
+  "extends": ["general"],
+  "steps": [
+    {"id": "video-project", "capability": "media.video.project", "optional": false, "pluginChoices": ["dsh-remotion", "dsh-hyperframes"], "selection": "choose-one"},
+    {"id": "media-edit", "capability": "media.video.edit", "optional": true, "pluginChoices": ["dsh-ffmpeg"], "selection": "choose-one"},
+    {"id": "subtitle-audio", "capability": "media.video.subtitle.process", "optional": true, "pluginChoices": ["dsh-ffmpeg"], "selection": "choose-one"},
+    {"id": "storyboard", "capability": "media.video.storyboard.extract", "optional": true, "pluginChoices": ["dsh-video-storyboard"], "selection": "choose-one"},
+    {"id": "generate-assets", "capability": "media.video.generate", "optional": true, "pluginChoices": ["@q253595422/dsh-imagegen-video"], "selection": "choose-one"}
+  ],
+  "defaultPlugins": []
+}
