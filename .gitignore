@@ -1,3 +1,8 @@
 node_modules/
 *.log
 .DS_Store
+
+# Private project documentation stays in the local working copy.
+/README.md
+/NOTICE.md
+/docs/
