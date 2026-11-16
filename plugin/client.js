@@ -6,7 +6,7 @@ window.__ModuleLoader__.load({
     const module = {exports: {}}
     const React = require('react')
     const h = React.createElement
-    const {useEffect, useState} = React
+    const {useEffect, useRef, useState} = React
     const ROOT = '/api-dsh-diy'
     const C = {
       text: 'var(--dsw-alias-label-primary, inherit)',
@@ -46,8 +46,8 @@ window.__ModuleLoader__.load({
       }, children)
     }
 
-    function Card({children}) {
-      return h('div', {style: {border: `1px solid ${C.border}`, background: C.surface, borderRadius: 10, padding: 12, marginTop: 10}}, children)
+    function Card({children, id}) {
+      return h('div', {id, style: {border: `1px solid ${C.border}`, background: C.surface, borderRadius: 10, padding: 12, marginTop: 10}}, children)
     }
 
     let activeSessionId = ''
@@ -73,6 +73,9 @@ window.__ModuleLoader__.load({
       const [workspaceId, setWorkspaceId] = useState('general')
       const [workspace, setWorkspace] = useState(null)
       const [selections, setSelections] = useState({})
+      const [workspaceDraft, setWorkspaceDraft] = useState(null)
+      const [loadedDraft, setLoadedDraft] = useState(null)
+      const pendingDraft = useRef(null)
       const [goal, setGoal] = useState('')
       const [recommendation, setRecommendation] = useState(null)
       const [plan, setPlan] = useState(null)
@@ -99,10 +102,30 @@ window.__ModuleLoader__.load({
         if (!workspaceId) return () => { active = false }
         api('/workspace?id=' + encodeURIComponent(workspaceId)).then(value => {
           if (!active) return
-          setWorkspace(value); setSelections({}); setPlan(null)
+          setWorkspace(value)
+          const pending = pendingDraft.current
+          if (pending && pending.workspace.id === value.id) {
+            setSelections(pending.selections)
+            pendingDraft.current = null
+          } else setSelections({})
+          setPlan(null)
         }).catch(reason => active && setError(reason.message))
         return () => { active = false }
       }, [workspaceId])
+
+      useEffect(() => {
+        if (!sessionId) { setWorkspaceDraft(null); return undefined }
+        let active = true
+        const refreshDraft = async () => {
+          try {
+            const value = await api('/draft?sessionId=' + encodeURIComponent(String(sessionId)))
+            if (active) setWorkspaceDraft(current => current?.id === value?.id ? current : value)
+          } catch { /* A transient poll failure should not interrupt panel use. */ }
+        }
+        refreshDraft()
+        const timer = window.setInterval(refreshDraft, 1500)
+        return () => { active = false; window.clearInterval(timer) }
+      }, [sessionId])
 
       const recommend = async () => {
         setBusy(true); setError(''); setPlan(null)
@@ -163,11 +186,28 @@ window.__ModuleLoader__.load({
       }
       const askAi = async () => {
         setAiMessage('')
-        const prompt = `我正在使用 DSH DIY 设计工作台。我的目标是：${goal.trim() || '请先结合我选择的工作台预设，与我澄清需求'}。请作为插件选型顾问，调用 diy_recommend 查询目录，必要时调用 diy_workspaces 查看预设。先问清关键需求，再用通俗中文比较候选插件：具体做什么、适合谁、前置条件/限制、相互差异、兼容性与验证状态。明确哪些只是目录声明，不要虚构能力或宣称未验证的插件衔接已经可用。给出推荐组合、理由和未覆盖环节，并说明在面板哪一步选择。`
+        const prompt = `我正在使用 DSH DIY 设计工作台。我的目标是：${goal.trim() || '请先结合我选择的工作台预设，与我澄清需求'}。请作为插件选型顾问，调用 diy_recommend 查询目录，必要时调用 diy_workspaces 查看预设。先问清关键需求，再用通俗中文比较候选插件：具体做什么、适合谁、前置条件/限制、相互差异、兼容性与验证状态。明确哪些只是目录声明，不要虚构能力或宣称未验证的插件衔接已经可用。先和我一起推导和确认组合；只有我明确认可方案后，才调用 diy_submit_workspace_draft，把工作台 id、每个已选步骤的精确 package、逐步理由和总结提交给右侧 DSH DIY 面板。该工具只创建待确认草案，不会安装。完成后提醒我回到右侧 DIY，点击“载入 AI 草案”，在那里检查、调整、预览和自行确认安装。`
         try {
           const status = await sendToChat(activeSessionId, prompt)
-          setAiMessage(status === 'sent' ? '选型任务已发给当前对话中的 AI。请在对话里回答它的澄清问题。' : status === 'draft' ? '当前对话输入框已有未发送内容；请先发送或清空，再点击。' : status === 'queued' ? '选型任务已在当前对话队列中。' : '没有可用的当前对话输入接口；可继续查看目录说明和手动选择。')
+          setAiMessage(status === 'sent' ? '选型任务已发给当前对话中的 AI。请在左侧继续回答和确认；完成后草案会自动出现在这里。' : status === 'draft' ? '当前对话输入框已有未发送内容；请先发送或清空，再点击。' : status === 'queued' ? '选型任务已在当前对话队列中。' : '没有可用的当前对话输入接口；可继续查看目录说明和手动选择。')
         } catch (reason) { setAiMessage(`AI 任务发送失败：${reason.message}`) }
+      }
+      const loadWorkspaceDraft = async () => {
+        if (!workspaceDraft) return
+        pendingDraft.current = workspaceDraft
+        setLoadedDraft(workspaceDraft)
+        setPlan(null)
+        if (workspaceId === workspaceDraft.workspace.id) {
+          setSelections(workspaceDraft.selections)
+          pendingDraft.current = null
+        }
+        else setWorkspaceId(workspaceDraft.workspace.id)
+        try {
+          await api('/draft/ack', 'POST', {sessionId: String(sessionId), draftId: workspaceDraft.id})
+          setWorkspaceDraft(null)
+          setMessage('AI 草案已载入右侧工作台。请检查每一步选择和理由，再预览方案；尚未安装任何插件。')
+        } catch (reason) { setError(`载入草案时未能确认：${reason.message}`) }
+        window.setTimeout(() => document.getElementById('dsh-diy-workspace-editor')?.scrollIntoView({behavior: 'smooth', block: 'start'}), 100)
       }
 
       const fieldStyle = {width: '100%', boxSizing: 'border-box', color: C.text, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 7, padding: '8px 10px', font: 'inherit', fontSize: 13}
@@ -199,6 +239,17 @@ window.__ModuleLoader__.load({
             h('code', {style: {display: 'block', padding: 8, borderRadius: 6, background: C.surface, overflowWrap: 'anywhere', userSelect: 'all', fontSize: 11}}, recoveryCommand),
             h('div', {style: {marginTop: 5}}, h(Button, {onClick: () => copyRecoveryCommand(recoveryCommand)}, '复制恢复命令')),
           ) : null,
+        workspaceDraft ? h(Card, null,
+          h('div', {style: {fontWeight: 650}}, 'AI 已完成推导 · 工作台草案待载入'),
+          h('div', {style: {...small, marginTop: 3}}, `${workspaceDraft.workspace.name} · ${new Date(workspaceDraft.createdAt).toLocaleTimeString()}`),
+          workspaceDraft.summary ? h('div', {style: {...small, marginTop: 6}}, workspaceDraft.summary) : null,
+          ...workspaceDraft.selected.map(item => h('div', {key: item.stepId, style: {borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 5}},
+            h('div', {style: {fontWeight: 600}}, `${item.stepName}：${item.displayName}`),
+            item.reason ? h('div', {style: small}, item.reason) : null,
+          )),
+          h('div', {style: {marginTop: 8}}, h(Button, {primary: true, onClick: loadWorkspaceDraft}, '载入 AI 草案到右侧设置')),
+          h('div', {style: {...small, marginTop: 5}}, '载入只会预填选择，不会安装。你可以逐项修改，然后预览并自行确认。'),
+        ) : null,
         h(Card, null,
           h('div', {style: {fontWeight: 650}}, '你想完成什么？'),
           h('div', {style: {...small, margin: '3px 0 9px'}}, '目录检索只负责找线索；“请 AI 帮我选”会把目标发给当前 DSH 对话中的助手，请它追问需求、比较插件并解释选择理由。'),
@@ -215,11 +266,16 @@ window.__ModuleLoader__.load({
           )),
           recommendation.missingCapabilities?.length ? h('div', {style: {...small, color: C.danger, marginTop: 8}}, `目录暂缺候选：${recommendation.missingCapabilities.join('、')}`) : null,
         ) : null,
-        h(Card, null,
+        h(Card, {id: 'dsh-diy-workspace-editor'},
           h('div', {style: {fontWeight: 650}}, '选择一个工作台原型'),
           h('div', {style: {...small, margin: '3px 0 9px'}}, '预设是可修改的初始组合。逐步选择后先预览，再确认安装；使用一段时间后可以按评分和实际缺口调整。'),
           h('select', {value: workspaceId, onChange: event => setWorkspaceId(event.target.value), style: fieldStyle}, ...workspaces.map(row => h('option', {key: row.id, value: row.id}, row.name.zh || row.name.en))),
           workspace ? h('div', {style: {...small, marginTop: 7}}, workspace.description.zh || workspace.description.en) : null,
+          loadedDraft?.workspace.id === workspaceId ? h('div', {style: {marginTop: 8, padding: 8, borderRadius: 7, background: C.surface}},
+            h('div', {style: {fontWeight: 600}}, 'AI 推荐理由'),
+            loadedDraft.summary ? h('div', {style: small}, loadedDraft.summary) : null,
+            ...loadedDraft.selected.map(item => h('div', {key: item.stepId, style: {...small, marginTop: 4}}, `${item.stepName} · ${item.displayName}${item.reason ? `：${item.reason}` : ''}`)),
+          ) : null,
           workspace?.steps.map(step => h('div', {key: step.id, style: {marginTop: 10}},
             h('div', {style: {fontWeight: 600}}, `${step.name || step.id}${step.optional ? ' · 可选' : ' · 必需'}`),
             h('div', {style: small}, step.description || step.capability),

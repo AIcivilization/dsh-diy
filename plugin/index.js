@@ -1,4 +1,5 @@
 import {buildApplyPlan, createProfileBackup, listProfileBackups, listWorkspaces, loadCatalog, loadWorkspace, readProfileBackup, recommendPlugins, resolveWorkspace, restoreProfileFiles} from '../src/index.js'
+import {randomUUID} from 'node:crypto'
 
 export const name = 'dsh-diy'
 export const inject = []
@@ -6,6 +7,7 @@ export const inject = []
 const BASE = '/api-dsh-diy'
 const JSON_TYPE = 'application/json; charset=utf-8'
 const PACKAGE_NAME = /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+(?:@[0-9][a-z0-9.+-]*)?$/i
+const workspaceDrafts = new Map()
 
 function sendJson(res, status, payload) {
   res.writeHead(status, {'content-type': JSON_TYPE, 'cache-control': 'no-store'})
@@ -66,6 +68,47 @@ async function installedBundleNames(pluginManager) {
   }
 }
 
+async function createWorkspaceDraft(args, sessionId) {
+  if (typeof sessionId !== 'string' || sessionId.length < 1 || sessionId.length > 256) {
+    throw new Error('无法识别当前 DSH 对话，草案没有保存。')
+  }
+  const workspaceId = String(args.workspace || '')
+  const catalog = await loadCatalog()
+  const recipe = await loadWorkspace(workspaceId, catalog)
+  const selections = args.selections && typeof args.selections === 'object' && !Array.isArray(args.selections) ? args.selections : {}
+  for (const [stepId, packageName] of Object.entries(selections)) {
+    if (!/^[a-z0-9][a-z0-9._-]*$/i.test(stepId) || typeof packageName !== 'string' || !PACKAGE_NAME.test(packageName)) {
+      throw new Error('工作台草案中的步骤或插件格式无效。')
+    }
+  }
+  const resolved = await resolveWorkspace(catalog, workspaceId, {selections})
+  const reasons = args.stepReasons && typeof args.stepReasons === 'object' && !Array.isArray(args.stepReasons) ? args.stepReasons : {}
+  const stepById = new Map(resolved.steps.map(step => [step.id, step]))
+  const byPackage = new Map(catalog.plugins.map(plugin => [plugin.package, plugin]))
+  const selected = resolved.steps.filter(step => step.enabled).map(step => {
+    const plugin = byPackage.get(step.selectedPlugin)
+    const reason = typeof reasons[step.id] === 'string' ? reasons[step.id].trim().slice(0, 600) : ''
+    return {stepId: step.id, stepName: step.name || step.id, package: plugin.package, displayName: plugin.displayName || plugin.package, reason}
+  })
+  for (const stepId of Object.keys(reasons)) if (!stepById.has(stepId)) throw new Error(`未知的工作台步骤：${stepId}`)
+  const summary = String(args.summary || '').trim().slice(0, 1200)
+  const createdAt = new Date()
+  for (const [key, item] of workspaceDrafts) if (Date.parse(item.expiresAt) <= createdAt.getTime()) workspaceDrafts.delete(key)
+  const draft = {
+    id: randomUUID(),
+    status: 'ready',
+    sessionId,
+    workspace: {id: recipe.id, name: recipe.name.zh || recipe.name.en, description: recipe.description.zh || recipe.description.en},
+    selections: Object.fromEntries(resolved.steps.filter(step => step.enabled).map(step => [step.id, step.selectedPlugin])),
+    selected,
+    summary,
+    createdAt: createdAt.toISOString(),
+    expiresAt: new Date(createdAt.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+  }
+  workspaceDrafts.set(sessionId, draft)
+  return {id: draft.id, status: draft.status, workspace: draft.workspace, selections: draft.selections, selected: draft.selected, summary: draft.summary, createdAt: draft.createdAt, expiresAt: draft.expiresAt, message: '已把工作台草案送到 DSH DIY 右侧面板。该草案不会安装插件；需要用户在面板检查、调整并预览。'}
+}
+
 async function registerDiyTools(tools) {
   if (!tools || typeof tools.register !== 'function') return
   let defineTool = tool => tool
@@ -113,7 +156,46 @@ async function registerDiyTools(tools) {
         schema: json,
         render: (_args, value) => [{type: 'text', text: JSON.stringify(value, null, 2)}],
       },
-      async execute() { return listWorkspaces() },
+      async execute() {
+        const catalog = await loadCatalog()
+        const plugins = new Map(catalog.plugins.map(plugin => [plugin.package, plugin]))
+        const workspaces = await listWorkspaces()
+        return Promise.all(workspaces.map(async item => {
+          const recipe = await loadWorkspace(item.id, catalog)
+          return {...item,
+            defaultPlugins: recipe.defaultPlugins,
+            steps: recipe.steps.map(step => ({
+              id: step.id,
+              name: step.name || step.id,
+              description: step.description || '',
+              why: step.why || '',
+              optional: step.optional,
+              choices: step.pluginChoices.map(packageName => {
+                const plugin = plugins.get(packageName)
+                return {package: packageName, displayName: plugin.displayName || packageName, summary: plugin.summary.zh || plugin.summary.en, bestFor: plugin.bestFor || '', tradeoffs: plugin.tradeoffs || '', evidence: plugin.evidence.level}
+              }),
+            })),
+          }
+        }))
+      },
+    },
+    {
+      name: 'diy_submit_workspace_draft',
+      description: '用户确认推荐组合后调用，把工作台 ID、每一步选中的目录插件、逐步理由和总结送到当前会话的 DSH DIY 右侧面板。只保存待确认草案，不安装插件、不修改 profile。必需步骤必须有选择，可选步骤可省略。',
+      parameters: {
+        workspace: {type: 'string', required: true, description: 'diy_workspaces 返回的工作台 id，例如 video-creator'},
+        selections: {type: 'json', required: true, description: 'JSON 对象：步骤 id 到插件 package 的映射，只允许当前工作台目录中的候选'},
+        summary: {type: 'string', description: '中文概括选择理由和未覆盖需求'},
+        stepReasons: {type: 'json', description: 'JSON 对象：步骤 id 到推荐理由的映射'},
+      },
+      output: {
+        schema: json,
+        render: (_args, value) => [{type: 'text', text: JSON.stringify(value, null, 2)}],
+      },
+      async execute(args, exec) {
+        const sessionId = exec?.agent?.id || exec?.agent?.session?.id
+        return createWorkspaceDraft(args, sessionId)
+      },
     },
   ]
 
@@ -130,7 +212,7 @@ function registerRoutes(ctx, webServer, getPluginManager) {
     const installed = await installedBundleNames(pluginManager)
     sendJson(res, 200, {
       name: 'dsh-diy',
-      version: '0.0.3',
+      version: '0.0.4',
       profile,
       catalogAsOf: catalog.metadata.asOf,
       pluginCount: catalog.plugins.length,
@@ -143,6 +225,32 @@ function registerRoutes(ctx, webServer, getPluginManager) {
   })
 
   route('/workspaces', async (_req, res) => sendJson(res, 200, await listWorkspaces()))
+
+  route('/draft', async (req, res) => {
+    const sessionId = new URL(req.url, 'http://dsh.local').searchParams.get('sessionId') || ''
+    if (!sessionId || sessionId.length > 256) return sendJson(res, 400, {error: 'valid sessionId is required'})
+    const draft = workspaceDrafts.get(sessionId)
+    if (!draft) return sendJson(res, 200, null)
+    if (Date.parse(draft.expiresAt) <= Date.now()) {
+      workspaceDrafts.delete(sessionId)
+      return sendJson(res, 200, null)
+    }
+    const {sessionId: _sessionId, ...publicDraft} = draft
+    sendJson(res, 200, publicDraft)
+  })
+
+  route('/draft/ack', async (req, res) => {
+    if (!safePost(req)) return sendJson(res, 403, {error: 'same-origin JSON POST required'})
+    const body = await readJsonBody(req)
+    if (body.error) return sendJson(res, 400, {error: body.error})
+    const sessionId = String(body.sessionId || '')
+    const draft = workspaceDrafts.get(sessionId)
+    if (!draft || draft.id !== body.draftId) return sendJson(res, 404, {error: '草案不存在或已更新'})
+    workspaceDrafts.delete(sessionId)
+    sendJson(res, 200, {ok: true})
+  })
+
+
 
   route('/workspace', async (req, res) => {
     try {
