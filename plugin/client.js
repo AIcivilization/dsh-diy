@@ -50,8 +50,8 @@ window.__ModuleLoader__.load({
       return h('div', {id, style: {border: `1px solid ${C.border}`, background: C.surface, borderRadius: 10, padding: 12, marginTop: 10}}, children)
     }
 
-    let activeSessionId = ''
     let composerFor = null
+    let startSelectionSession = null
     async function sendToChat(sessionId, text) {
       const input = sessionId && composerFor ? composerFor(sessionId) : null
       if (!input) return 'none'
@@ -67,7 +67,6 @@ window.__ModuleLoader__.load({
     }
 
     function DiyPanel({sessionId}) {
-      activeSessionId = String(sessionId || '')
       const [meta, setMeta] = useState(null)
       const [workspaces, setWorkspaces] = useState([])
       const [workspaceId, setWorkspaceId] = useState('general')
@@ -86,6 +85,7 @@ window.__ModuleLoader__.load({
       const [message, setMessage] = useState('')
       const [recoveryCommand, setRecoveryCommand] = useState('')
       const [aiMessage, setAiMessage] = useState('')
+      const [startingAi, setStartingAi] = useState(false)
 
       useEffect(() => {
         let active = true
@@ -185,12 +185,15 @@ window.__ModuleLoader__.load({
         finally { setBusy(false) }
       }
       const askAi = async () => {
-        setAiMessage('')
+        setAiMessage(''); setError(''); setStartingAi(true)
         const prompt = `我正在使用 DSH DIY 设计工作台。我的目标是：${goal.trim() || '请先结合我选择的工作台预设，与我澄清需求'}。请作为插件选型顾问，调用 diy_recommend 查询目录，必要时调用 diy_workspaces 查看预设。先问清关键需求，再用通俗中文比较候选插件：具体做什么、适合谁、前置条件/限制、相互差异、兼容性与验证状态。明确哪些只是目录声明，不要虚构能力或宣称未验证的插件衔接已经可用。先和我一起推导和确认组合；只有我明确认可方案后，才调用 diy_submit_workspace_draft，把工作台 id、每个已选步骤的精确 package、逐步理由和总结提交给右侧 DSH DIY 面板。该工具只创建待确认草案，不会安装。完成后提醒我回到右侧 DIY，点击“载入 AI 草案”，在那里检查、调整、预览和自行确认安装。`
         try {
-          const status = await sendToChat(activeSessionId, prompt)
-          setAiMessage(status === 'sent' ? '选型任务已发给当前对话中的 AI。请在左侧继续回答和确认；完成后草案会自动出现在这里。' : status === 'draft' ? '当前对话输入框已有未发送内容；请先发送或清空，再点击。' : status === 'queued' ? '选型任务已在当前对话队列中。' : '没有可用的当前对话输入接口；可继续查看目录说明和手动选择。')
-        } catch (reason) { setAiMessage(`AI 任务发送失败：${reason.message}`) }
+          if (!startSelectionSession) throw new Error('此 DSH 版本没有提供新建会话接口。')
+          const dedicatedSessionId = await startSelectionSession()
+          const status = await sendToChat(dedicatedSessionId, prompt)
+          setAiMessage(status === 'sent' ? '已切换到独立的 AI 选型对话，任务已发送。你可以在新对话中逐步澄清和确认；完成后草案会回到右侧 DIY。原有对话没有被修改。' : status === 'draft' ? '新会话输入框已有未发送内容；请检查新会话后再试。原有对话未改动。' : status === 'queued' ? '选型任务已在专用新会话队列中。' : '新会话已打开，但无法连接它的输入框；请在新对话中手动描述需求。')
+        } catch (reason) { setAiMessage(`未能启动独立选型对话：${reason.message}`) }
+        finally { setStartingAi(false) }
       }
       const loadWorkspaceDraft = async () => {
         if (!workspaceDraft) return
@@ -252,9 +255,9 @@ window.__ModuleLoader__.load({
         ) : null,
         h(Card, null,
           h('div', {style: {fontWeight: 650}}, '你想完成什么？'),
-          h('div', {style: {...small, margin: '3px 0 9px'}}, '目录检索只负责找线索；“请 AI 帮我选”会把目标发给当前 DSH 对话中的助手，请它追问需求、比较插件并解释选择理由。'),
+          h('div', {style: {...small, margin: '3px 0 9px'}}, '目录检索只负责找线索；“请 AI 帮我选”会先打开一个空白的新对话，再让助手追问需求、比较插件并解释选择理由。不会把任务发进当前项目对话。'),
           h('textarea', {value: goal, onChange: event => setGoal(event.target.value), rows: 3, placeholder: '例如：用已有素材剪一条短视频，自动整理字幕和音轨', style: {...fieldStyle, resize: 'vertical'}}),
-          h('div', {style: {display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap'}}, h(Button, {disabled: busy || goal.trim().length < 2, onClick: recommend}, busy ? '检索中…' : '查找目录候选'), h(Button, {primary: true, disabled: !activeSessionId, onClick: askAi}, '请 AI 帮我选')),
+          h('div', {style: {display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap'}}, h(Button, {disabled: busy || goal.trim().length < 2, onClick: recommend}, busy ? '检索中…' : '查找目录候选'), h(Button, {primary: true, disabled: startingAi, onClick: askAi}, startingAi ? '正在新建选型对话…' : '请 AI 帮我选（新对话）')),
           aiMessage ? h('div', {style: {...small, marginTop: 7}}, aiMessage) : null,
         ),
         recommendation ? h(Card, null,
@@ -319,8 +322,9 @@ window.__ModuleLoader__.load({
 
     function apply(ctx) {
       try {
-        ctx.inject(['sessions', 'conversation'], scope => {
+        ctx.inject(['sessions', 'workspaces', 'conversation'], scope => {
           const sessions = (scope.get && scope.get('sessions')) || scope.sessions
+          const workspaces = (scope.get && scope.get('workspaces')) || scope.workspaces
           const reader = sessionId => {
             const scoped = sessions?.scope?.(sessionId)
             const conversation = scoped?.get?.('conversation')
@@ -328,9 +332,53 @@ window.__ModuleLoader__.load({
             return input && typeof input.setDraft === 'function' && typeof input.submit === 'function' ? input : null
           }
           composerFor = reader
-          if (scope.effect) scope.effect(() => () => { if (composerFor === reader) composerFor = null }, 'dsh-diy: composer')
+          const startDedicatedSession = async () => {
+            if (!sessions?.list?.getSnapshot || typeof workspaces?.startSession !== 'function') throw new Error('sessions/workspaces service unavailable')
+            const beforeSnapshot = sessions.list.getSnapshot()
+            const before = beforeSnapshot.current
+            const workspaceSnapshot = workspaces.list?.getSnapshot?.()
+            const currentWorkspace = before && workspaceSnapshot?.items?.find(item => item.sessionIds?.includes(before))
+            const targetWorkspaceId = currentWorkspace?.workspaceId || workspaceSnapshot?.recentWorkspaceId
+            const targetWorkspace = workspaceSnapshot?.items?.find(item => item.workspaceId === targetWorkspaceId)
+            const archived = workspaceSnapshot?.archivedSessionIds || []
+            const reusableBlank = targetWorkspace && beforeSnapshot.ids.find(id => {
+              const summary = beforeSnapshot.byId?.[id]
+              return summary?.blank && summary.cwd === targetWorkspace.path && targetWorkspace.sessionIds.includes(id) && !archived.includes(id)
+            })
+            workspaces.startSession()
+            if (before && reusableBlank === before) {
+              await new Promise(resolve => setTimeout(resolve, 100))
+              const snapshot = sessions.list.getSnapshot()
+              if (snapshot.current === before && reader(before)) return before
+            }
+            let selected = null
+            const deadline = Date.now() + 12000
+            while (Date.now() < deadline) {
+              const snapshot = sessions.list.getSnapshot()
+              const current = snapshot.current
+              const summary = current ? snapshot.byId?.[current] : null
+              if (current && summary?.blank && current !== before) { selected = current; break }
+              await new Promise(resolve => setTimeout(resolve, 100))
+            }
+            if (!selected && before) {
+              const snapshot = sessions.list.getSnapshot()
+              if (snapshot.current === before && snapshot.byId?.[before]?.blank) selected = before
+            }
+            if (!selected) throw new Error('DSH 没有在 12 秒内打开新的空白会话；原有对话未修改。')
+            const composerDeadline = Date.now() + 5000
+            while (Date.now() < composerDeadline) {
+              if (reader(selected)) return selected
+              await new Promise(resolve => setTimeout(resolve, 100))
+            }
+            throw new Error('新会话已打开，但 DSH 输入框尚未就绪；原有对话未修改。')
+          }
+          startSelectionSession = startDedicatedSession
+          if (scope.effect) scope.effect(() => () => {
+            if (composerFor === reader) composerFor = null
+            if (startSelectionSession === startDedicatedSession) startSelectionSession = null
+          }, 'dsh-diy: isolated composer')
         })
-      } catch (error) { console.warn('[dsh-diy] conversation input unavailable', error) }
+      } catch (error) { console.warn('[dsh-diy] isolated conversation input unavailable', error) }
       try {
         ctx.inject(['sidebarRight', 'sidebarRightTabs'], scope => {
           const right = (scope.get && scope.get('sidebarRight')) || scope.sidebarRight

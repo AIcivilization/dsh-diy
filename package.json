@@ -1,6 +1,6 @@
 {
   "name": "dsh-diy",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "AI-guided DSH workspace builder: discover plugins and compose scenario workspaces.",
   "license": "MIT",
   "type": "module",

@@ -212,7 +212,7 @@ function registerRoutes(ctx, webServer, getPluginManager) {
     const installed = await installedBundleNames(pluginManager)
     sendJson(res, 200, {
       name: 'dsh-diy',
-      version: '0.0.4',
+      version: '0.0.5',
       profile,
       catalogAsOf: catalog.metadata.asOf,
       pluginCount: catalog.plugins.length,
